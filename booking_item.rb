@@ -3,12 +3,14 @@ require './helper.rb'
 
 
 class Booking
-attr_accessor :items, :bkg_no
+attr_accessor :items, :bkg_no, :shipper, :errors
 
 
-def initialize booking_hash, bkg_no
+def initialize booking_hash, bkg_no, shipper
 @bkg_no = bkg_no
-new_hash = booking_hash.select { |k,v|  k != :pod }
+@shipper = shipper
+@errors = []
+new_hash = booking_hash.select { |k,v|  ![:pod,:shipper].include?(k) }
 @items = []
 
 new_hash.each do |k,v|
@@ -26,18 +28,33 @@ end
 i
 end
 
-def print
-puts "---------------------------------------------"
-puts bkg_no
-items.each do |it|
-puts "-------------"
-puts it.to_s + ": Booking Item: -#{it.type} -#{it.haz} " 
-puts "-------------"
-it.units.each do |u|
-p u.to_s + ':' + u.box.instance_variable_get(:@container).to_s 
+def print file
+file.puts
+file.puts "______________________________________________________"
+file.puts ">>>>>>>>>>>> #{bkg_no} <<<<<<<<<<<<<"
+if errors.any?
+file.puts"!!!!!!!"
+errors.each {|e| file.puts e} 
+file.puts "!!!!!!!"
+end
+items.each_with_index do |it,i|
+file.puts"-------------"
+file.puts "Booking ITEM #{i+1}" + " -#{it.cmdty} " ": #{it.units.length} X #{it.type} #{it.haz} #{it.temp} #{it.odims}  " 
+file.puts it.errors if it.errors.any?
+file.puts"-------------"
+it.units.each_with_index do |u,i|
+file.puts "Container #{i+1}" + ' : ' + u.box.instance_variable_get(:@container).to_s 
+if !u.box.nil? && u.box.errors.any?
+puts
+file.puts"!!!!!!!"
+u.box.errors.each {|e| file.puts e}
+file.puts"!!!!!!!"
+puts
 end
 end
-puts "---------------------------------------------"
+end
+file.puts "______________________________________________________"
+file.puts
 end
 
 def pick_items(array,attribute,compared_to,status=true)
@@ -49,6 +66,12 @@ else
 bis = array.select {|bi| bi.send(attribute) == compared_to}
 end
 end
+
+def reconcile_items 
+items.each {|item| item.reconcile_units}
+end
+
+
 
 # container allocation with multiple lines
 def sub_allocate array,attribute,compared_to,container,&block
@@ -82,7 +105,8 @@ sub_array = pick_items(array,attribute,compared_to)
 					end
 										
 					end
-				container.errors << "Surplus Container #{container.instance_variable_get(:@container)}" 
+				#SURPLUS CONTAINER	
+				errors << "Surplus Container #{container.instance_variable_get(:@container)}" 
 				else
 				# select the first empty element from any Booking Item
 					array.each do |bi|
@@ -93,20 +117,24 @@ sub_array = pick_items(array,attribute,compared_to)
 					
 					end
 				#SURPLUS CONTAINER	
-				container.errors << "Surplus Container #{container.instance_variable_get(:@container)}" 
+				errors << "Surplus Container #{container.instance_variable_get(:@container)}" 
 				end
 
 end
 	
 	class BI 
-		attr_accessor :units, :type, :temp, :odims, :oh, :haz
+		attr_accessor :units, :type, :temp, :odims, :oh, :haz, :weight, :errors, :terminal_weight, :cmdty
 		def initialize item_hash
 		@units = []
 		@type = item_hash[:type]
 		@temp = item_hash[:temp]
-		@odims = [item_hash[:oh], item_hash[:owr], item_hash[:owl], item_hash[:olf], item_hash[:olb]]
-		@oh = item_hash[:oh]
+		@odims = [item_hash[:oh], item_hash[:owr], item_hash[:owl], item_hash[:olf], item_hash[:olb]].map! {|e|   e == "0" ? e = nil : e }
+		@oh = item_hash[:oh] == "0" ? nil : item_hash[:oh]
 		@haz = item_hash[:haz].values.uniq.select {|i| !i.strip.empty?}
+		@weight = item_hash[:weight].to_i
+		@cmdty = item_hash[:cmdty]
+		@terminal_weight = 0
+		@errors = []
 		item_hash[:qty].to_i.times do 
 		units << Unit.new(item_hash)
 		end
@@ -121,6 +149,7 @@ end
 		def initialize item_hash
 		@type = item_hash[:type]
 		@temp = item_hash[:temp]
+		
 		item_hash.each do |k,v|
 		instance_variable_set("@"+k.to_s.gsub(/\?/,""),v) unless k == :qty
 		end
@@ -133,13 +162,20 @@ end
 			yield u  if !u.filled?
 			end 
 		end
+		
+		def each_filled_unit &block
+			@units.each  do |u|  
+			yield u  if u.filled?
+			end 
+		end
+		
 	
 		def empty_units 
 		result = []
 		each_empty_unit {|u| result << u}
 		result
 		end
-	
+		
 		def first_empty_unit 
 		empty_units[0]
 		end	
@@ -148,10 +184,56 @@ end
 		empty_units.empty?
 		end
 		
+		def check_unit u
+		number =  u.box.instance_variable_get(:@container)
+		temp =  u.box.instance_variable_get(:@reefertemperaturec)
+		odims = [u.box.instance_variable_get(:@oogtopcm),u.box.instance_variable_get(:@oogrightcm),u.box.instance_variable_get(:@oogleftcm),
+				u.box.instance_variable_get(:@oogbackcm),u.box.instance_variable_get(:@oogfrontcm)]
+		oh =  u.box.instance_variable_get(:@oogtopcm)
+		haz = u.box.instance_variable_get(:@imdgcodes).split(",") unless u.box.instance_variable_get(:@imdgcodes).nil?
+		weight = u.box.instance_variable_get(:@weightkg).sub(',',"").to_i
+			case @type
+			when "20RF"	|| "40RF"
+			u.box.errors << "Reefer Temp (#{temp}) doesn't match booking temp: [#{@temp}]" if @temp != temp
+			when "20OT" || "40OT"
+			u.box.errors << "OOG dims (#{oh}) doesn't match booking: [#{@oh}]" if @oh != oh
+			when "20FF" || "40FF" 
+					
+				u.box.errors << "OOG dims (#{odims}) doesn't match booking: [#{@odims}]" if @odims != odims
+			
+			end
+			u.box.errors << "Container is not PRAed as HAZ booking : #{@haz} container: #{haz}" if !@haz.empty? && !haz
+			
+			if (!@haz.empty? && !haz) || (@haz.empty? && haz)
+			u.box.errors << "HAZ doesn't match " if @haz != haz
+			end
+			if filled?
+				if units.length == 1 && @weight != weight
+					u.box.errors << "Amend Booking cargo weight to (#{weight-u.box.tare(@type)})" 
+				else
+				@terminal_weight += weight
+				
+				end
+			end
+		end	
+		
+		
+		def reconcile_units
+		each_filled_unit {|u| check_unit u}
+		begin
+		errors << "Amend Booking Item cargo weight to (#{@terminal_weight - $TARES[type]*units.length})" if filled? && @terminal_weight != @weight && units.length > 1
+		rescue e
+		puts "??????????????????????????????????????????????????????????"
+		puts "Error: #{type} #{errors}"
+		puts "??????????????????????????????????????????????????????????"
+		puts e
+		end
+		end
+		
 	end
 	
 	
-	def allocate container
+def allocate container
 		
 		type = container.type(container.instance_variable_get(:@iso))
 		number =  container.instance_variable_get(:@container)
@@ -162,11 +244,11 @@ end
 		haz = container.instance_variable_get(:@imdgcodes).split(",") unless container.instance_variable_get(:@imdgcodes).nil?
 		bis = pick_items(items,:type,type, false)
 		#CONTAINER TYPE DOESN'T MATCH BOOKING
-		puts "Container type is wrong for #{number}" if bis.empty?
+		errors << "Container type for #{number} is wrong" if bis.empty?
 			
 		if bis.length == 1
 		#SURPLUS CONTAINER
-		!bis[0].first_empty_unit ?  container.errors << "Surplus Container #{number}" : bis[0].first_empty_unit.box = container
+		!bis[0].first_empty_unit ?  errors << "Surplus Container #{number}" : bis[0].first_empty_unit.box = container
 		else
 			case type
 				when "20RF"
@@ -180,7 +262,7 @@ end
 			end
 			
 		end			
-	puts container.errors
+	
 	end
 	
 
@@ -208,6 +290,14 @@ end
 end
 puts "#{iso} NOT FOUND!"
 end
+
+
+
+def tare type
+
+$TARES[type]
+
+
 end
 
-
+end

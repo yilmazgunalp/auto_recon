@@ -8,6 +8,7 @@ CSV.foreach(b10, {headers: true, skip_blanks: true}) do |line|
 
 #selected fields for a booking
 bkg = line["Booking No"].strip.to_sym
+shipper = line["Booking Party"].strip
 pod = line["POD"]
 qty = line['Units(Qty.)']
 type = line["Container Type"].strip
@@ -46,7 +47,7 @@ haz = line["Hazardous"]
  #if not creates a booking with the first booking item numbered as 1 
   else  
 
-  bookings[bkg] = {pod: pod, 1 => {qty: qty, type: type, weight: weight, cmdty: cmdty, reefer?: reefer, 
+  bookings[bkg] = {pod: pod, shipper: shipper, 1 => {qty: qty, type: type, weight: weight, cmdty: cmdty, reefer?: reefer, 
 								temp: temp, oog?: oog, oh: oh, owr: owr, owl: owl, olf: olf,olb: olb, haz?: haz}}
   
 	if  line.index("HAZ IMO Class")
