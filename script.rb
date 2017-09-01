@@ -31,7 +31,8 @@ bkg_no = line.field("BOOKING REFERENCE NUMBER").to_sym
 	else
 	booking_hash = bookings[bkg_no]
 	shipper = bookings[bkg_no][:shipper] 
-	booking_obj =  booking_objects[bkg_no] || Booking.new(booking_hash, bkg_no, shipper)
+	pod = bookings[bkg_no][:pod] 
+	booking_obj =  booking_objects[bkg_no] || Booking.new(booking_hash, bkg_no, shipper,pod)
 	booking_objects[booking_obj.bkg_no] ||= booking_obj
 	
 	#CREATE a CONTAINER OBJECT
@@ -61,5 +62,7 @@ booking_objects.each_value do |v|
 v.reconcile_items
 v.print recon_file
 end
+
+
 
 

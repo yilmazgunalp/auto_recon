@@ -26,9 +26,9 @@ end
 
 $TYPES = { ["2210","22G0","22G1"] => "20DY", ["2232", "22R0", "22R1"] => "20RF", ["4500", "4510", "45G0", "45G1"] =>  "40HC", 
 		["42G0","42G1"] => "40DY", ["22P1", "22P3"] => "20FF", ["22T4","22T5","22T6"] => "20TK",  ["42P1","42P3"] => "40FF", ["42U1"] => "40OT", 
-		["22U1"] => "20OT", ["25G1"] => "20HC", ["BBLK"] => "BBULK" }
+		["22U1"] => "20OT", ["25G1"] => "20HC", ["BBLK"] => ["BBULK", "BPCE"] }
 		
-$PORTS = { "AUBNE" => "BRISBANE", "PGPOM" => "PORT MORESBY", "PGLAE" => "LAE"  }		
+$PORTS = { "AUBNE" => "BRISBANE", "PGPOM" => "PORT MORESBY", "PGLAE" => "LAE", "PGLNV" => "LIHIR ISLAND" , "SGSIN" => "SINGAPORE"  }		
 	
 $TARES = { "20DY" => 2230, "20RF" => 3000, "40HC" => 3900, "40DY" => 3900, "20FF" => 2750, "40FF" => 5400, "40OT" => 3800, "20OT" => 2300, "20HC" => 2300, "BBULK" => 0  }	
 		
@@ -48,7 +48,6 @@ end
 
 
 def sub_header string, file
-
 file << ["********************************************"]
 file << ["#{string.upcase}"]
 file << ["********************************************"]

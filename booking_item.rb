@@ -3,13 +3,14 @@ require './helper.rb'
 
 
 class Booking
-attr_accessor :items, :bkg_no, :shipper, :errors
+attr_accessor :items, :bkg_no, :shipper, :errors, :pod
 
 
-def initialize booking_hash, bkg_no, shipper
+def initialize booking_hash, bkg_no,shipper, pod
 @bkg_no = bkg_no
 @shipper = shipper
 @errors = []
+@pod = pod
 new_hash = booking_hash.select { |k,v|  ![:pod,:shipper].include?(k) }
 @items = []
 
@@ -31,7 +32,7 @@ end
 def print file
 file.puts
 file.puts "______________________________________________________"
-file.puts ">>>>>>>>>>>> #{bkg_no} <<<<<<<<<<<<<"
+file.puts ">>>>>>>>>>>> #{bkg_no} : #{shipper.match(/^\w+\s\w+/)} - #{pod} <<<<<<<<<<<<<"
 if errors.any?
 file.puts"!!!!!!!"
 errors.each {|e| file.puts e} 
@@ -39,7 +40,7 @@ file.puts "!!!!!!!"
 end
 items.each_with_index do |it,i|
 file.puts"-------------"
-file.puts "Booking ITEM #{i+1}" + " -#{it.cmdty} " ": #{it.units.length} X #{it.type} #{it.haz} #{it.temp} #{it.odims}  " 
+file.puts "Booking ITEM #{i+1}" + " -#{it.cmdty} " ": #{it.units.length} X #{it.type}" 
 file.puts it.errors if it.errors.any?
 file.puts"-------------"
 it.units.each_with_index do |u,i|
@@ -128,7 +129,7 @@ end
 		@units = []
 		@type = item_hash[:type]
 		@temp = item_hash[:temp]
-		@odims = [item_hash[:oh], item_hash[:owr], item_hash[:owl], item_hash[:olf], item_hash[:olb]].map! {|e|   e == "0" ? e = nil : e }
+		@odims = [item_hash[:oh], item_hash[:owr], item_hash[:owl], item_hash[:olf], item_hash[:olb]].map! { |e|  e == "0" ? e = nil : (e.to_f*100).to_i.to_s }
 		@oh = item_hash[:oh] == "0" ? nil : item_hash[:oh]
 		@haz = item_hash[:haz].values.uniq.select {|i| !i.strip.empty?}
 		@weight = item_hash[:weight].to_i
@@ -220,14 +221,9 @@ end
 		
 		def reconcile_units
 		each_filled_unit {|u| check_unit u}
-		begin
+		
 		errors << "Amend Booking Item cargo weight to (#{@terminal_weight - $TARES[type]*units.length})" if filled? && @terminal_weight != @weight && units.length > 1
-		rescue e
-		puts "??????????????????????????????????????????????????????????"
-		puts "Error: #{type} #{errors}"
-		puts "??????????????????????????????????????????????????????????"
-		puts e
-		end
+		
 		end
 		
 	end
@@ -243,6 +239,7 @@ def allocate container
 		oh =  container.instance_variable_get(:@oogtopcm)
 		haz = container.instance_variable_get(:@imdgcodes).split(",") unless container.instance_variable_get(:@imdgcodes).nil?
 		bis = pick_items(items,:type,type, false)
+		
 		#CONTAINER TYPE DOESN'T MATCH BOOKING
 		errors << "Container type for #{number} is wrong" if bis.empty?
 			
@@ -253,11 +250,11 @@ def allocate container
 			case type
 				when "20RF"
 				sub_allocate(bis,:temp,temp,container)
-				when "20FF" || "40FF" 
+				when "20FF", "40FF"
 				sub_allocate(bis,:odims,odims,container) {|bis_array| bis_array.select {|item| oog_array_match? item.odims, odims}}
-				when "20OT" || "40OT"
+				when "20OT", "40OT"
 				sub_allocate(bis,:oh,oh,container)
-				when  "20DY" || "40HC" || "40DY"
+				when  "20DY","40HC","40DY"
 				sub_allocate(bis,:haz,haz,container)
 			end
 			
