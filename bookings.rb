@@ -1,8 +1,8 @@
-require 'csv'
+
 #reads B10 report and  creates a hash of bookings (bookings={}) with selected fields
 def booking_list 
 bookings = {}
-b10=File.open('./data_files/booking_list.csv')
+b10=File.open('../../Desktop/auto_recon_booking_list.csv')
 
 CSV.foreach(b10, {headers: true, skip_blanks: true}) do |line|
 
