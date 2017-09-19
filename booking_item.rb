@@ -40,7 +40,7 @@ file.puts "!!!!!!!"
 end
 items.each_with_index do |it,i|
 file.puts"-------------"
-file.puts "Booking ITEM #{i+1}" + " -#{it.cmdty} " ": #{it.units.length} X #{it.type} " 
+file.puts "Booking ITEM #{i+1}" + " -#{it.cmdty} " ": #{it.units.length} X #{it.type}  #{it.odims}" 
 file.puts "\t\t\t\t\t\t\t"+it.errors.join if it.errors.any?
 file.puts"-------------"
 it.units.each_with_index do |u,i|
@@ -79,7 +79,7 @@ def sub_allocate array,attribute,compared_to,container,&block
 sub_array = pick_items(array,attribute,compared_to)
 				# select the first empty element from Booking Items matching condition
 				if !sub_array.empty? 
-					sub_array.each do |it|
+				sub_array.each do |it|
 						if it.first_empty_unit  
 						it.first_empty_unit.box = container
 						return 
@@ -93,34 +93,29 @@ sub_array = pick_items(array,attribute,compared_to)
 								bi.first_empty_unit.box = container
 								return 
 								end
-						
 						end
-					else 
+					end
 					# select the first empty element from any Booking Item
-					array.each do |bi|
+						array.each do |bi|
 							if bi.first_empty_unit  
 							bi.first_empty_unit.box = container
 							return 
 							end
-					
-					end
-										
-					end
+						end
 				#SURPLUS CONTAINER	
 				errors << "Surplus Container #{container.instance_variable_get(:@container)}" 
 				else
 				# select the first empty element from any Booking Item
-					array.each do |bi|
+						array.each do |bi|
 							if bi.first_empty_unit  
 							bi.first_empty_unit.box = container
 							return 
 							end
 					
-					end
+						end
 				#SURPLUS CONTAINER	
 				errors << "Surplus Container #{container.instance_variable_get(:@container)}" 
 				end
-
 end
 
 
@@ -136,7 +131,7 @@ end
 		@temp = item_hash[:temp]
 		@odims = [item_hash[:oh], item_hash[:owr], item_hash[:owl], item_hash[:olf], item_hash[:olb]].map! { |e|  e == "0" ? e = nil : (e.to_f*100).to_i.to_s }
 		@oh = item_hash[:oh] == "0" ? nil : (item_hash[:oh].to_f*100).to_i.to_s
-		@haz = item_hash[:haz].values.uniq.select {|i| !i.strip.empty?}
+		@haz = (item_hash[:haz].values.uniq.select {|i| !i.strip.empty?}).sort
 		@weight = item_hash[:weight].to_i
 		@cmdty = item_hash[:cmdty] == "HAZARD " ?  "HAZ" : item_hash[:cmdty]
 		
@@ -198,6 +193,7 @@ end
 				u.box.instance_variable_get(:@oogfrontcm),u.box.instance_variable_get(:@oogbackcm)]
 		oh =  u.box.instance_variable_get(:@oogtopcm)
 		haz = u.box.instance_variable_get(:@imdgcodes).split(",") unless u.box.instance_variable_get(:@imdgcodes).nil?
+		haz.sort! unless haz.nil?
 		weight = u.box.instance_variable_get(:@weightkg).sub(',',"").to_i
 			case @type
 			when "20RF","40RF"
@@ -243,6 +239,7 @@ def allocate container
 				container.instance_variable_get(:@oogfrontcm),container.instance_variable_get(:@oogbackcm)]
 		oh =  container.instance_variable_get(:@oogtopcm)
 		haz = container.instance_variable_get(:@imdgcodes).split(",") unless container.instance_variable_get(:@imdgcodes).nil?
+		haz.sort! unless haz.nil?
 		bis = pick_items(items,:type,type, false)
 		cmdty = container.instance_variable_get(:@commodity)
 		
@@ -257,7 +254,7 @@ def allocate container
 				when "20RF"
 				sub_allocate(bis,:temp,temp,container)
 				when "20FF", "40FF"
-				sub_allocate(bis,:odims,odims,container) {|bis_array| bis_array.select {|item| oog_array_match? item.odims, odims}}
+				sub_allocate(bis,:odims,odims,container) {|bis_array| bis_array.select {|item| oog_array_match?(item.odims, odims)}}
 				when "20OT", "40OT"
 				sub_allocate(bis,:oh,oh,container)
 				when  "20DY","40HC","40DY","BBLK"  
@@ -308,3 +305,6 @@ $TARES[type]
 end
 
 end
+
+
+

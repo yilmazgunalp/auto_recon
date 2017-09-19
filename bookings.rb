@@ -1,4 +1,3 @@
-
 #reads B10 report and  creates a hash of bookings (bookings={}) with selected fields
 def booking_list 
 bookings = {}

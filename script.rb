@@ -48,7 +48,8 @@ end
 
 
 
-sub_header( "WARNING!!..Program produced errors!!  send 'auto_recon_logs' file to Yilmaz..", recon_file)  if $WITH_ERRORS 
+recon_file.puts "Report ran on #{Time.now.strftime('%d %b %H:%M')}"
+sub_header( "WARNING!!..Program produced errors!! Log file has been updated..", recon_file)  if $WITH_ERRORS 
 
 
 recon_file.puts "\nFound #{containers} containers ...\n\n"
@@ -76,7 +77,7 @@ recon_file.puts "Linked #{linked_units} containers ...\n\n"
 	recon_file.puts  "BookingNo\tContainer\tPOD\tFINAL"	
 	CSV::Table.new(no_bookings).values_at("BOOKING REFERENCE NUMBER","CONTAINER","PORT OF DISCHARGE","FINAL DESTINATION").each do |c| 
 	c.each {|f| recon_file <<  "#{f}\t" }
-	recon_file << "\n\n\n\n"
+	recon_file << "\n"
 	end
 	end		
 

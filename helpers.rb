@@ -1,5 +1,7 @@
 require 'csv'
 
+$user =  Dir.pwd.match(/C:\/Users\/(\w+)/)[1]
+
 class CSV::Table
 def values_at_with_condition(*indices_or_headers,&block) 
   if @mode == :row or  # by indices
@@ -26,7 +28,7 @@ end
 
 # GLOBAL VARIABLES
 
-$TYPES = { ["2210","22G0","22G1", "22GI", "20G1"] => "20DY", ["2232", "22R0", "22R1"] => "20RF", ["4500", "4510", "45G0", "45G1"] =>  "40HC", 
+$TYPES = { ["2210","22G0","22G1", "22GI", "20G1", "20GP"] => "20DY", ["2232", "22R0", "22R1"] => "20RF", ["4500", "4510", "45G0", "45G1"] =>  "40HC", 
 		["42G0","42G1"] => "40DY", ["22P1", "22P3"] => "20FF", ["22T4","22T5","22T6"] => "20TK",  ["42P1","42P3"] => "40FF", ["42U1"] => "40OT", 
 		["22U1"] => "20OT", ["25G1", "2EG1"] => "20HC", ["BBLK"] => "BBLK" }
 		
@@ -58,12 +60,13 @@ file << "********************************************\n"
 end
 
 
-#error_log file
-File.new('../../Desktop/auto_recon_logs.txt','w')
+b10=CSV.open('../../Desktop/auto_recon_booking_list.csv', {headers: true, skip_blanks: true})
+$vv = b10.shift.fields(3,9).join('-')
+
 
 $WITH_ERRORS = false
 def write_log error
-log_file = File.new('../../Desktop/auto_recon_logs.txt','a+')
-log_file.puts error
+log_file = File.new('K:/__M Drive New/Customer Service/CARGO MANAGEMENT/auto_recon/output_files/auto_recon_logs.txt','a+')
+log_file.puts "#{$user}: #{$vv} => #{error}"
 $WITH_ERRORS ||= true
 end
